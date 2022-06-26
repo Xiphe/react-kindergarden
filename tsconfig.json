@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-jsxdev",
+    "target": "ES2020",
+    "esModuleInterop": true,
+    "types": ["jest"]
+  }
+}
