@@ -2,7 +2,7 @@ import type { Context, MutableRefObject, ReactNode } from 'react';
 import {
   createContext,
   useContext,
-  useLayoutEffect,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -122,7 +122,7 @@ export function useUpdate(
   if (!register) {
     throw new Error('Can not useUpdate outside of <Kindergarden>');
   }
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (isInitial.current) {
       isInitial.current = false;
       return;
@@ -148,7 +148,7 @@ export function useKindergarden<Data = undefined>({
   const { unregister, setData } = useMemo(() => {
     return register();
   }, [register]);
-  useLayoutEffect(() => () => unregister(), [unregister]);
+  useEffect(() => () => unregister(), [unregister]);
 
   return setData;
 }

@@ -229,17 +229,9 @@ describe('Kindergarden', () => {
 
   describe('events', () => {
     it('calls onAdd, onUpdate and onRemove for each child', () => {
-      const addCb = jest.fn(() => {});
+      const addCb = jest.fn();
       const removeCb = jest.fn();
-      const updateCb = jest.fn((i, kind) => {
-        expect([0, 1]).toContain(i);
-        expect(kind).toEqual({
-          props: {
-            children: i === 0 ? 'Hi' : 'Ho',
-          },
-          type: 'li',
-        });
-      });
+      const updateCb = jest.fn();
       const Child = ({ children }: { children: string }) => (
         <li ref={useKindergarden()}>{children}</li>
       );
@@ -261,7 +253,14 @@ describe('Kindergarden', () => {
 
       expect(addCb).toHaveBeenCalledTimes(2);
       expect(updateCb).toHaveBeenCalledTimes(2);
-
+      expect(updateCb.mock.calls[0]).toEqual([
+        0,
+        { props: { children: 'Hi' }, type: 'li' },
+      ]);
+      expect(updateCb.mock.calls[1]).toEqual([
+        1,
+        { props: { children: 'Ho' }, type: 'li' },
+      ]);
       expect(removeCb).not.toHaveBeenCalled();
 
       act(() => {
@@ -269,7 +268,9 @@ describe('Kindergarden', () => {
       });
 
       expect(addCb).toHaveBeenCalledTimes(2);
-      expect(updateCb).toHaveBeenCalledTimes(2);
+      expect(updateCb).toHaveBeenCalledTimes(4);
+      expect(updateCb.mock.calls[2]).toEqual([0, null]);
+      expect(updateCb.mock.calls[3]).toEqual([1, null]);
       expect(removeCb).toHaveBeenCalledTimes(2);
     });
   });
