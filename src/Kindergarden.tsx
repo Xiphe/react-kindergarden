@@ -1,4 +1,4 @@
-import type { Context, ReactNode, RefCallback } from 'react';
+import type { Context, MutableRefObject, ReactNode } from 'react';
 import {
   createContext,
   useContext,
@@ -8,66 +8,63 @@ import {
   useState,
 } from 'react';
 
-export interface KindergardenContext<RefType, Data = never> {
-  (data?: Data): {
-    updateData(data?: Data): void;
-    ref: RefCallback<RefType>;
+export type SetData<Data> = {
+  (data: Data): void;
+  current: Data | null;
+};
+export interface KindergardenContext<Data = undefined> {
+  (): {
+    setData: SetData<Data>;
     unregister(): void;
   };
   update: () => void;
 }
-export const DefaultKindergardenContext = createContext<KindergardenContext<
-  any,
-  any
-> | null>(null);
+export const DefaultKindergardenContext =
+  createContext<KindergardenContext<any> | null>(null);
 
-export interface Child<RefType, Data = never> {
-  ref: RefType | null;
-  data?: Data;
+interface KindergardenRegistry<Data = undefined> {
+  add(ref: MutableRefObject<Data | null>): void;
+  update(ref: MutableRefObject<Data | null>): void;
+  remove(ref: MutableRefObject<Data | null>): void;
+  hooks: RegistryHooks<Data>;
 }
-interface KindergardenRegistry<RefType, Data = never> {
-  add(child: Child<RefType, Data>): void;
-  update(child: Child<RefType, Data>): void;
-  remove(child: Child<RefType, Data>): void;
-  hooks: RegistryHooks<RefType, Data>;
-}
-export interface RegistryHooks<RefType, Data = never> {
-  onAdd?(entry: Child<RefType, Data>): void;
+export interface RegistryHooks<Data = undefined> {
+  onAdd?(): void;
   onRemove?(index: number): void;
-  onUpdate?(index: number, entry: Child<RefType, Data>): void;
+  onUpdate?(index: number, data: Data): void;
 }
 
-export interface KindergardenProps<RefType, Data = never>
-  extends RegistryHooks<RefType, Data> {
+export interface KindergardenProps<Data = undefined>
+  extends RegistryHooks<Data> {
   children?: ReactNode;
-  context?: Context<KindergardenContext<RefType, Data> | null>;
+  context?: Context<KindergardenContext<Data> | null>;
 }
-export default function Kindergarden<RefType, Data = never>({
+export default function Kindergarden<Data = undefined>({
   context: { Provider } = DefaultKindergardenContext,
   onAdd,
   onRemove,
   onUpdate,
   children,
-}: KindergardenProps<RefType, Data>) {
-  const registry = useMemo((): KindergardenRegistry<RefType, Data> => {
-    const state: Child<RefType, Data>[] = [];
-    const hooks: RegistryHooks<RefType, Data> = {};
+}: KindergardenProps<Data>) {
+  const registry = useMemo((): KindergardenRegistry<Data> => {
+    const state: MutableRefObject<Data | null>[] = [];
+    const hooks: RegistryHooks<Data> = {};
     return {
       hooks,
-      add(entry) {
-        state.push(entry);
-        hooks.onAdd?.(entry);
+      add(data) {
+        state.push(data);
+        hooks.onAdd?.();
       },
-      update(entry) {
+      update(data) {
         if (hooks.onUpdate) {
-          const index = state.indexOf(entry);
+          const index = state.indexOf(data);
           if (index !== -1) {
-            hooks.onUpdate(index, entry);
+            hooks.onUpdate(index, data.current!);
           }
         }
       },
-      remove(entry) {
-        const index = state.indexOf(entry);
+      remove(data) {
+        const index = state.indexOf(data);
         if (index !== -1) {
           state.splice(index, 1);
           hooks.onRemove?.(index);
@@ -81,26 +78,23 @@ export default function Kindergarden<RefType, Data = never>({
 
   const [triggerUpdate, setTriggerUpdate] = useState<symbol>(Symbol());
 
-  const register = useMemo<KindergardenContext<RefType, Data>>(() => {
-    const callback: KindergardenContext<RefType, Data> = (data) => {
-      const entry: Child<RefType, Data> = {
-        ref: null,
-        data,
-      };
+  const register = useMemo<KindergardenContext<Data>>(() => {
+    const callback: KindergardenContext<Data> = () => {
+      const ref: MutableRefObject<Data | null> = { current: null };
 
-      registry.add(entry);
+      registry.add(ref);
+
+      const setData: SetData<Data> = (data) => {
+        ref.current = data;
+        setData.current = data;
+        registry.update(ref);
+      };
+      setData.current = null;
 
       return {
-        updateData(data) {
-          entry.data = data;
-          registry.update(entry);
-        },
-        ref(element) {
-          entry.ref = element;
-          registry.update(entry);
-        },
+        setData,
         unregister() {
-          registry.remove(entry);
+          registry.remove(ref);
         },
       };
     };
@@ -113,7 +107,7 @@ export default function Kindergarden<RefType, Data = never>({
 }
 
 export interface UseUpdateProps {
-  context?: Context<KindergardenContext<any, any> | null>;
+  context?: Context<KindergardenContext | null>;
   ignoreInitial?: boolean;
 }
 export function useUpdate(
@@ -137,43 +131,32 @@ export function useUpdate(
   }, dependencies);
 }
 
-export interface UseKindergardenProps<RefType, Data = never> {
-  data?: Data;
-  context?: Context<KindergardenContext<RefType, Data> | null>;
+export interface UseKindergardenProps<Data = undefined> {
+  context?: Context<KindergardenContext<Data> | null>;
   optional?: boolean;
 }
-export function useKindergarden<RefType, Data = never>({
-  data,
+export function useKindergarden<Data = undefined>({
   context = DefaultKindergardenContext,
   optional,
-}: UseKindergardenProps<RefType, Data> = {}): RefCallback<RefType> | undefined {
+}: UseKindergardenProps<Data> = {}): SetData<Data> {
   const register = useContext(context) || noopRegister;
 
   if (register === noopRegister && !optional) {
     throw new Error('Can not useKindergarden outside of <Kindergarden>');
   }
 
-  const initial = useRef(true);
-  const { ref, unregister, updateData } = useMemo(() => {
-    initial.current = true;
-    return register(data);
+  const { unregister, setData } = useMemo(() => {
+    return register();
   }, [register]);
-  useLayoutEffect(() => {
-    if (initial.current) {
-      initial.current = false;
-    } else {
-      updateData(data);
-    }
-  }, [updateData, data]);
   useLayoutEffect(() => () => unregister(), [unregister]);
-  return ref;
+
+  return setData;
 }
 
-const noopRegister = () => {
+const noopRegister = (): any => {
   return {
     /* istanbul ignore next */
-    updateData() {},
-    ref() {},
+    setData() {},
     unregister() {},
   };
 };

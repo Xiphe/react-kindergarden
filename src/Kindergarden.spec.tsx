@@ -4,22 +4,28 @@ import {
   memo,
   ReactElement,
   SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
   useState,
 } from 'react';
 import Kindergarden, {
   KindergardenContext,
-  Child,
+  SetData,
   useKindergarden,
   useUpdate,
 } from './Kindergarden';
 import { create, act, ReactTestRenderer } from 'react-test-renderer';
 
-function createRegistry<RefType, Data = never>() {
-  const entries: Child<RefType, Data>[] = [];
+function createRegistry<Data = undefined>() {
+  const entries: (Data | null)[] = [];
   return {
     entries,
-    onAdd(child: Child<RefType, Data>) {
-      entries.push(child);
+    onAdd() {
+      entries.push(null);
+    },
+    onUpdate(index: number, entry: Data) {
+      entries.splice(index, 1, entry);
     },
     onRemove(index: number) {
       entries.splice(index, 1);
@@ -29,7 +35,10 @@ function createRegistry<RefType, Data = never>() {
 
 describe('Kindergarden', () => {
   it('throws when child is rendered outside of Kindergarden', () => {
-    const Child = () => <li ref={useKindergarden()}>Hi</li>;
+    const Child = () => {
+      useKindergarden();
+      return null;
+    };
 
     expect(() => {
       jest.spyOn(console, 'error').mockImplementationOnce(() => {});
@@ -38,7 +47,10 @@ describe('Kindergarden', () => {
   });
 
   it('does not throw when kindergarden is optional', () => {
-    const Child = () => <li ref={useKindergarden({ optional: true })}>Hi</li>;
+    const Child = () => {
+      useKindergarden({ optional: true });
+      return null;
+    };
 
     let root: ReactTestRenderer;
     act(() => {
@@ -54,7 +66,9 @@ describe('Kindergarden', () => {
 
   it('hold reference to nested child', () => {
     const registry = createRegistry<ReactElement<{}, 'li'>>();
-    const Child = () => <li ref={useKindergarden()}>Hi</li>;
+    const Child = () => {
+      return <li ref={useKindergarden<HTMLLIElement>()}>Hi</li>;
+    };
 
     let root: ReactTestRenderer;
     act(() => {
@@ -71,7 +85,7 @@ describe('Kindergarden', () => {
     });
 
     expect(registry.entries).toEqual([
-      { ref: { type: 'li', props: { children: 'Hi' } }, data: undefined },
+      { type: 'li', props: { children: 'Hi' } },
     ]);
 
     act(() => {
@@ -82,10 +96,17 @@ describe('Kindergarden', () => {
   });
 
   it('holds reference to nested children with data', () => {
-    const registry = createRegistry<ReactElement<{}, 'li'>>();
-    const Child = ({ children }: { children: string }) => (
-      <li ref={useKindergarden({ data: children })}>{children}</li>
-    );
+    type Data = { ref?: HTMLLIElement | null; text?: string };
+    const registry = createRegistry<Data>();
+    const Child = ({ children }: { children: string }) => {
+      const update = useKindergarden<Data>();
+      useEffect(() => {
+        update({ ...update.current, text: children });
+      }, [update, children]);
+      return (
+        <li ref={(ref) => update({ ...update.current, ref })}>{children}</li>
+      );
+    };
 
     let root: ReactTestRenderer;
     act(() => {
@@ -109,8 +130,8 @@ describe('Kindergarden', () => {
     });
 
     expect(registry.entries).toEqual([
-      { ref: { type: 'li', props: { children: 'Hi' } }, data: 'Hi' },
-      { ref: { type: 'li', props: { children: 'Ho' } }, data: 'Ho' },
+      { ref: { type: 'li', props: { children: 'Hi' } }, text: 'Hi' },
+      { ref: { type: 'li', props: { children: 'Ho' } }, text: 'Ho' },
     ]);
 
     act(() => {
@@ -121,46 +142,44 @@ describe('Kindergarden', () => {
   });
 
   it('uses custom context with typed data', () => {
-    const context = createContext<KindergardenContext<
-      HTMLButtonElement,
-      { cool: boolean }
-    > | null>(null);
-    const registry = createRegistry<HTMLButtonElement, { cool: boolean }>();
+    type Data = { $el?: HTMLButtonElement | null; cool?: boolean };
+    const context = createContext<KindergardenContext<Data> | null>(null);
+    const registry = createRegistry<Data>();
 
     (function tsErrors() {
       let _: any = () => {
-        const ref = useKindergarden({ data: { cool: true }, context });
+        const update = useKindergarden({ context });
         // @ts-expect-error
-        return <li ref={ref} />;
+        return <li ref={($el) => update({ $el })} />;
       };
       _ = () => {
+        const update = useKindergarden({ context });
         // @ts-expect-error
-        const ref = useKindergarden({ data: { cool: 'hello' }, context });
-        return <button ref={ref} />;
+        update({ cool: 'yes' });
+        return null;
       };
-      const wrongDataType = createRegistry<
-        HTMLButtonElement,
-        { cool: number }
-      >();
+      const wrongDataType = createRegistry<{
+        $el?: HTMLButtonElement | null;
+        cool?: number;
+      }>();
       // @ts-expect-error
       _ = <Kindergarden {...wrongDataType} context={context} />;
 
-      const wrongElementType = createRegistry<
-        HTMLDivElement,
-        { cool: boolean }
-      >();
+      const wrongElementType = createRegistry<{
+        $el?: HTMLDivElement | null;
+        cool?: number;
+      }>();
       // @ts-expect-error
       _ = <Kindergarden {...wrongElementType} context={context} />;
     })();
 
-    let setCool: Dispatch<SetStateAction<boolean>> | null = null;
+    let update: SetData<Data> | null = null;
     const Child = ({ children }: { children: string }) => {
-      const [cool, sc] = useState<boolean>(true);
-      setCool = setCool || sc;
+      const u = useKindergarden({ context });
+      update = update || u;
+
       return (
-        <button ref={useKindergarden({ data: { cool }, context })}>
-          {children}
-        </button>
+        <button ref={($el) => u({ ...u.current, $el })}>{children}</button>
       );
     };
     let root: ReactTestRenderer;
@@ -180,27 +199,24 @@ describe('Kindergarden', () => {
 
     expect(registry.entries).toEqual([
       {
-        ref: { type: 'button', props: { children: 'Hi' } },
-        data: { cool: true },
+        $el: { type: 'button', props: { children: 'Hi' } },
       },
       {
-        ref: { type: 'button', props: { children: 'Ho' } },
-        data: { cool: true },
+        $el: { type: 'button', props: { children: 'Ho' } },
       },
     ]);
 
     act(() => {
-      setCool!(false);
+      update!({ ...update!.current, cool: false });
     });
 
     expect(registry.entries).toEqual([
       {
-        ref: { type: 'button', props: { children: 'Hi' } },
-        data: { cool: false },
+        $el: { type: 'button', props: { children: 'Hi' } },
+        cool: false,
       },
       {
-        ref: { type: 'button', props: { children: 'Ho' } },
-        data: { cool: true },
+        $el: { type: 'button', props: { children: 'Ho' } },
       },
     ]);
 
@@ -213,27 +229,19 @@ describe('Kindergarden', () => {
 
   describe('events', () => {
     it('calls onAdd, onUpdate and onRemove for each child', () => {
-      const addCb = jest.fn((kind) => {
-        expect(kind).toEqual({
-          data: expect.stringMatching(/Hi|Ho/),
-          ref: null,
-        });
-      });
+      const addCb = jest.fn(() => {});
       const removeCb = jest.fn();
       const updateCb = jest.fn((i, kind) => {
         expect([0, 1]).toContain(i);
         expect(kind).toEqual({
-          data: expect.any(String),
-          ref: {
-            props: {
-              children: i === 0 ? 'Hi' : 'Ho',
-            },
-            type: 'li',
+          props: {
+            children: i === 0 ? 'Hi' : 'Ho',
           },
+          type: 'li',
         });
       });
       const Child = ({ children }: { children: string }) => (
-        <li ref={useKindergarden({ data: children })}>{children}</li>
+        <li ref={useKindergarden()}>{children}</li>
       );
 
       let root: ReactTestRenderer;
@@ -253,14 +261,6 @@ describe('Kindergarden', () => {
 
       expect(addCb).toHaveBeenCalledTimes(2);
       expect(updateCb).toHaveBeenCalledTimes(2);
-      expect(addCb.mock.calls[0][0]).toEqual({
-        ref: { type: 'li', props: { children: 'Hi' } },
-        data: 'Hi',
-      });
-      expect(addCb.mock.calls[1][0]).toEqual({
-        ref: { type: 'li', props: { children: 'Ho' } },
-        data: 'Ho',
-      });
 
       expect(removeCb).not.toHaveBeenCalled();
 
@@ -319,14 +319,8 @@ describe('Kindergarden', () => {
       });
 
       expect(registry.entries).toEqual([
-        {
-          ref: { type: 'li', props: { children: 'Hi' } },
-          data: undefined,
-        },
-        {
-          ref: { type: 'li', props: { children: 'Ho' } },
-          data: undefined,
-        },
+        { type: 'li', props: { children: 'Hi' } },
+        { type: 'li', props: { children: 'Ho' } },
       ]);
 
       act(() => {
@@ -334,25 +328,19 @@ describe('Kindergarden', () => {
       });
 
       expect(root!.toJSON()).toMatchInlineSnapshot(`
-        <ul>
-          <li>
-            Ho
-          </li>
-          <li>
-            Hi
-          </li>
-        </ul>
-      `);
+          <ul>
+            <li>
+              Ho
+            </li>
+            <li>
+              Hi
+            </li>
+          </ul>
+        `);
 
       expect(registry.entries).toEqual([
-        {
-          ref: { type: 'li', props: { children: 'Ho' } },
-          data: undefined,
-        },
-        {
-          ref: { type: 'li', props: { children: 'Hi' } },
-          data: undefined,
-        },
+        { type: 'li', props: { children: 'Ho' } },
+        { type: 'li', props: { children: 'Hi' } },
       ]);
 
       act(() => {
