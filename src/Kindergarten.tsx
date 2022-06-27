@@ -12,17 +12,17 @@ export type SetData<Data> = {
   (data: Data): void;
   current: Data | null;
 };
-export interface KindergardenContext<Data = undefined> {
+export interface KindergartenContext<Data = undefined> {
   (): {
     setData: SetData<Data>;
     unregister(): void;
   };
   update: () => void;
 }
-export const DefaultKindergardenContext =
-  createContext<KindergardenContext<any> | null>(null);
+export const DefaultKindergartenContext =
+  createContext<KindergartenContext<any> | null>(null);
 
-interface KindergardenRegistry<Data = undefined> {
+interface KindergartenRegistry<Data = undefined> {
   add(ref: MutableRefObject<Data | null>): void;
   update(ref: MutableRefObject<Data | null>): void;
   remove(ref: MutableRefObject<Data | null>): void;
@@ -34,19 +34,19 @@ export interface RegistryHooks<Data = undefined> {
   onUpdate?(index: number, data: Data): void;
 }
 
-export interface KindergardenProps<Data = undefined>
+export interface KindergartenProps<Data = undefined>
   extends RegistryHooks<Data> {
   children?: ReactNode;
-  context?: Context<KindergardenContext<Data> | null>;
+  context?: Context<KindergartenContext<Data> | null>;
 }
-export default function Kindergarden<Data = undefined>({
-  context: { Provider } = DefaultKindergardenContext,
+export default function Kindergarten<Data = undefined>({
+  context: { Provider } = DefaultKindergartenContext,
   onAdd,
   onRemove,
   onUpdate,
   children,
-}: KindergardenProps<Data>) {
-  const registry = useMemo((): KindergardenRegistry<Data> => {
+}: KindergartenProps<Data>) {
+  const registry = useMemo((): KindergartenRegistry<Data> => {
     const state: MutableRefObject<Data | null>[] = [];
     const hooks: RegistryHooks<Data> = {};
     return {
@@ -78,8 +78,8 @@ export default function Kindergarden<Data = undefined>({
 
   const [triggerUpdate, setTriggerUpdate] = useState<symbol>(Symbol());
 
-  const register = useMemo<KindergardenContext<Data>>(() => {
-    const callback: KindergardenContext<Data> = () => {
+  const register = useMemo<KindergartenContext<Data>>(() => {
+    const callback: KindergartenContext<Data> = () => {
       const ref: MutableRefObject<Data | null> = { current: null };
 
       registry.add(ref);
@@ -107,20 +107,20 @@ export default function Kindergarden<Data = undefined>({
 }
 
 export interface UseUpdateProps {
-  context?: Context<KindergardenContext | null>;
+  context?: Context<KindergartenContext | null>;
   ignoreInitial?: boolean;
 }
 export function useUpdate(
   dependencies: any[],
   {
-    context = DefaultKindergardenContext,
+    context = DefaultKindergartenContext,
     ignoreInitial = true,
   }: UseUpdateProps = {},
 ) {
   const register = useContext(context);
   const isInitial = useRef(ignoreInitial);
   if (!register) {
-    throw new Error('Can not useUpdate outside of <Kindergarden>');
+    throw new Error('Can not useUpdate outside of <Kindergarten>');
   }
   useEffect(() => {
     if (isInitial.current) {
@@ -131,18 +131,18 @@ export function useUpdate(
   }, dependencies);
 }
 
-export interface UseKindergardenProps<Data = undefined> {
-  context?: Context<KindergardenContext<Data> | null>;
+export interface UseKindergartenProps<Data = undefined> {
+  context?: Context<KindergartenContext<Data> | null>;
   optional?: boolean;
 }
-export function useKindergarden<Data = undefined>({
-  context = DefaultKindergardenContext,
+export function useKindergarten<Data = undefined>({
+  context = DefaultKindergartenContext,
   optional,
-}: UseKindergardenProps<Data> = {}): SetData<Data> {
+}: UseKindergartenProps<Data> = {}): SetData<Data> {
   const register = useContext(context) || noopRegister;
 
   if (register === noopRegister && !optional) {
-    throw new Error('Can not useKindergarden outside of <Kindergarden>');
+    throw new Error('Can not useKindergarten outside of <Kindergarten>');
   }
 
   const { unregister, setData } = useMemo(() => {

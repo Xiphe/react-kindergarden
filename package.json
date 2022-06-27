@@ -1,5 +1,5 @@
 {
-  "name": "react-kindergarden",
+  "name": "react-kindergarten",
   "version": "0.0.0-development",
   "description": "herd deeply nested react components",
   "main": "index.js",
@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/Xiphe/react-kindergarden.git"
+    "url": "git+ssh://git@github.com/Xiphe/react-kindergarten.git"
   },
   "keywords": [
     "react",
@@ -18,12 +18,15 @@
     "manager",
     "order"
   ],
-  "author": "Hannes Diercks <node@xiphe.net> (https://xiphe.net/)",
+  "author": "Hannes Diercks <react-kindergarten@xiphe.net> (https://xiphe.net/)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Xiphe/react-kindergarden/issues"
+    "url": "https://github.com/Xiphe/react-kindergarten/issues"
   },
-  "homepage": "https://github.com/Xiphe/react-kindergarden#readme",
+  "homepage": "https://github.com/Xiphe/react-kindergarten#readme",
+  "peerDependencies": {
+    "react": ">= 16.8"
+  },
   "devDependencies": {
     "@types/jest": "28.1.3",
     "@types/react": "18.0.14",

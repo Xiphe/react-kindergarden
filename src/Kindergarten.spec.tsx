@@ -4,17 +4,15 @@ import {
   memo,
   ReactElement,
   SetStateAction,
-  useCallback,
   useEffect,
-  useRef,
   useState,
 } from 'react';
-import Kindergarden, {
-  KindergardenContext,
+import Kindergarten, {
+  KindergartenContext,
   SetData,
-  useKindergarden,
+  useKindergarten,
   useUpdate,
-} from './Kindergarden';
+} from './Kindergarten';
 import { create, act, ReactTestRenderer } from 'react-test-renderer';
 
 function createRegistry<Data = undefined>() {
@@ -33,22 +31,22 @@ function createRegistry<Data = undefined>() {
   };
 }
 
-describe('Kindergarden', () => {
-  it('throws when child is rendered outside of Kindergarden', () => {
+describe('Kindergarten', () => {
+  it('throws when child is rendered outside of Kindergarten', () => {
     const Child = () => {
-      useKindergarden();
+      useKindergarten();
       return null;
     };
 
     expect(() => {
       jest.spyOn(console, 'error').mockImplementationOnce(() => {});
       create(<Child />);
-    }).toThrowError('Can not useKindergarden outside of <Kindergarden>');
+    }).toThrowError('Can not useKindergarten outside of <Kindergarten>');
   });
 
-  it('does not throw when kindergarden is optional', () => {
+  it('does not throw when kindergarten is optional', () => {
     const Child = () => {
-      useKindergarden({ optional: true });
+      useKindergarten({ optional: true });
       return null;
     };
 
@@ -67,17 +65,17 @@ describe('Kindergarden', () => {
   it('hold reference to nested child', () => {
     const registry = createRegistry<ReactElement<{}, 'li'>>();
     const Child = () => {
-      return <li ref={useKindergarden<HTMLLIElement>()}>Hi</li>;
+      return <li ref={useKindergarten<HTMLLIElement>()}>Hi</li>;
     };
 
     let root: ReactTestRenderer;
     act(() => {
       root = create(
-        <Kindergarden {...registry}>
+        <Kindergarten {...registry}>
           <ul>
             <Child />
           </ul>
-        </Kindergarden>,
+        </Kindergarten>,
         {
           createNodeMock: (el) => el,
         },
@@ -99,7 +97,7 @@ describe('Kindergarden', () => {
     type Data = { ref?: HTMLLIElement | null; text?: string };
     const registry = createRegistry<Data>();
     const Child = ({ children }: { children: string }) => {
-      const update = useKindergarden<Data>();
+      const update = useKindergarten<Data>();
       useEffect(() => {
         update({ ...update.current, text: children });
       }, [update, children]);
@@ -111,7 +109,7 @@ describe('Kindergarden', () => {
     let root: ReactTestRenderer;
     act(() => {
       root = create(
-        <Kindergarden {...registry}>
+        <Kindergarten {...registry}>
           <ul>
             <Child>Hi</Child>
           </ul>
@@ -122,7 +120,7 @@ describe('Kindergarden', () => {
               </ul>
             </li>
           </ul>
-        </Kindergarden>,
+        </Kindergarten>,
         {
           createNodeMock: (el) => el,
         },
@@ -143,17 +141,17 @@ describe('Kindergarden', () => {
 
   it('uses custom context with typed data', () => {
     type Data = { $el?: HTMLButtonElement | null; cool?: boolean };
-    const context = createContext<KindergardenContext<Data> | null>(null);
+    const context = createContext<KindergartenContext<Data> | null>(null);
     const registry = createRegistry<Data>();
 
     (function tsErrors() {
       let _: any = () => {
-        const update = useKindergarden({ context });
+        const update = useKindergarten({ context });
         // @ts-expect-error
         return <li ref={($el) => update({ $el })} />;
       };
       _ = () => {
-        const update = useKindergarden({ context });
+        const update = useKindergarten({ context });
         // @ts-expect-error
         update({ cool: 'yes' });
         return null;
@@ -163,19 +161,19 @@ describe('Kindergarden', () => {
         cool?: number;
       }>();
       // @ts-expect-error
-      _ = <Kindergarden {...wrongDataType} context={context} />;
+      _ = <Kindergarten {...wrongDataType} context={context} />;
 
       const wrongElementType = createRegistry<{
         $el?: HTMLDivElement | null;
         cool?: number;
       }>();
       // @ts-expect-error
-      _ = <Kindergarden {...wrongElementType} context={context} />;
+      _ = <Kindergarten {...wrongElementType} context={context} />;
     })();
 
     let update: SetData<Data> | null = null;
     const Child = ({ children }: { children: string }) => {
-      const u = useKindergarden({ context });
+      const u = useKindergarten({ context });
       update = update || u;
 
       return (
@@ -186,10 +184,10 @@ describe('Kindergarden', () => {
     act(() => {
       root = create(
         <ul>
-          <Kindergarden {...registry} context={context}>
+          <Kindergarten {...registry} context={context}>
             <Child>Hi</Child>
             <Child>Ho</Child>
-          </Kindergarden>
+          </Kindergarten>
         </ul>,
         {
           createNodeMock: (el) => el,
@@ -233,18 +231,18 @@ describe('Kindergarden', () => {
       const removeCb = jest.fn();
       const updateCb = jest.fn();
       const Child = ({ children }: { children: string }) => (
-        <li ref={useKindergarden()}>{children}</li>
+        <li ref={useKindergarten()}>{children}</li>
       );
 
       let root: ReactTestRenderer;
       act(() => {
         root = create(
-          <Kindergarden onAdd={addCb} onRemove={removeCb} onUpdate={updateCb}>
+          <Kindergarten onAdd={addCb} onRemove={removeCb} onUpdate={updateCb}>
             <ul>
               <Child>Hi</Child>
               <Child>Ho</Child>
             </ul>
-          </Kindergarden>,
+          </Kindergarten>,
           {
             createNodeMock: (el) => el,
           },
@@ -276,7 +274,7 @@ describe('Kindergarden', () => {
   });
 
   describe('update', () => {
-    it('throws used outside of Kindergarden', () => {
+    it('throws used outside of Kindergarten', () => {
       const Child = () => {
         useUpdate([]);
         return null;
@@ -285,13 +283,13 @@ describe('Kindergarden', () => {
       expect(() => {
         jest.spyOn(console, 'error').mockImplementationOnce(() => {});
         create(<Child />);
-      }).toThrowError('Can not useUpdate outside of <Kindergarden>');
+      }).toThrowError('Can not useUpdate outside of <Kindergarten>');
     });
 
     it('updates registry order when children are sorted', () => {
       const registry = createRegistry<ReactElement<{}, 'li'>>();
       const Child = memo(({ children }: { children: string }) => (
-        <li ref={useKindergarden()}>{children}</li>
+        <li ref={useKindergarten()}>{children}</li>
       ));
       let setChildren: Dispatch<SetStateAction<string[]>>;
       const Sorter = () => {
@@ -310,9 +308,9 @@ describe('Kindergarden', () => {
       let root: ReactTestRenderer;
       act(() => {
         root = create(
-          <Kindergarden {...registry}>
+          <Kindergarten {...registry}>
             <Sorter />
-          </Kindergarden>,
+          </Kindergarten>,
           {
             createNodeMock: (el) => el,
           },
