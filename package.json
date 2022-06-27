@@ -2,8 +2,13 @@
   "name": "react-kindergarten",
   "version": "0.0.0-development",
   "description": "herd deeply nested react components",
-  "main": "index.js",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
   "scripts": {
+    "build": "npm run build:declarations && npm run build:esm && npm run build:cjs",
+    "build:declarations": "tsc",
+    "build:esm": "esbuild src/Kindergarten.tsx --outfile=dist/index.js --format=esm --target=es2020 --jsx-factory=createElement --sourcemap --minify",
+    "build:cjs": "esbuild src/Kindergarten.tsx --outfile=dist/index.cjs --format=cjs --target=es2020 --jsx-factory=createElement --sourcemap --minify",
     "test": "jest"
   },
   "repository": {

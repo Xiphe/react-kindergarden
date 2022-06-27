@@ -4,6 +4,11 @@
     "jsx": "react-jsxdev",
     "target": "ES2020",
     "esModuleInterop": true,
-    "types": ["jest"]
-  }
+    "types": ["jest"],
+    "outDir": "dist",
+    "declaration": true,
+    "skipLibCheck": true,
+    "emitDeclarationOnly": true
+  },
+  "include": ["src/Kindergarten.tsx"]
 }
