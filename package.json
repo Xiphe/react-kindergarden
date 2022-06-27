@@ -4,6 +4,7 @@
   "description": "herd deeply nested react components",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
+  "types": "dist/Kindergarten.d.ts",
   "scripts": {
     "prepare": "npm t && rm -rf dist && npm run build",
     "build": "npm run build:declarations && npm run build:esm && npm run build:cjs",
