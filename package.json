@@ -5,6 +5,7 @@
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "scripts": {
+    "prepare": "npm t && rm -rf dist && npm run build",
     "build": "npm run build:declarations && npm run build:esm && npm run build:cjs",
     "build:declarations": "tsc",
     "build:esm": "esbuild src/Kindergarten.tsx --outfile=dist/index.js --format=esm --target=es2020 --jsx-factory=createElement --sourcemap --minify",
