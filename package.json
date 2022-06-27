@@ -1,6 +1,6 @@
 {
   "name": "react-kindergarten",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "herd deeply nested react components",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
