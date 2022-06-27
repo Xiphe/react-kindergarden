@@ -7,14 +7,25 @@ import {
   useState,
 } from 'react';
 import Kindergarden, {
-  useKindergarden,
   KindergardenContext,
+  Child,
+  useKindergarden,
   useUpdate,
-  createRegistry,
-  useRegistry,
-  KindergardenRegistry,
 } from './Kindergarden';
 import { create, act, ReactTestRenderer } from 'react-test-renderer';
+
+function createRegistry<RefType, Data = never>() {
+  const entries: Child<RefType, Data>[] = [];
+  return {
+    entries,
+    onAdd(child: Child<RefType, Data>) {
+      entries.push(child);
+    },
+    onRemove(index: number) {
+      entries.splice(index, 1);
+    },
+  };
+}
 
 describe('Kindergarden', () => {
   it('throws when child is rendered outside of Kindergarden', () => {
@@ -48,7 +59,7 @@ describe('Kindergarden', () => {
     let root: ReactTestRenderer;
     act(() => {
       root = create(
-        <Kindergarden registry={registry}>
+        <Kindergarden {...registry}>
           <ul>
             <Child />
           </ul>
@@ -79,7 +90,7 @@ describe('Kindergarden', () => {
     let root: ReactTestRenderer;
     act(() => {
       root = create(
-        <Kindergarden registry={registry}>
+        <Kindergarden {...registry}>
           <ul>
             <Child>Hi</Child>
           </ul>
@@ -132,14 +143,14 @@ describe('Kindergarden', () => {
         { cool: number }
       >();
       // @ts-expect-error
-      _ = <Kindergarden registry={wrongDataType} context={context} />;
+      _ = <Kindergarden {...wrongDataType} context={context} />;
 
       const wrongElementType = createRegistry<
         HTMLDivElement,
         { cool: boolean }
       >();
       // @ts-expect-error
-      _ = <Kindergarden registry={wrongElementType} context={context} />;
+      _ = <Kindergarden {...wrongElementType} context={context} />;
     })();
 
     let setCool: Dispatch<SetStateAction<boolean>> | null = null;
@@ -156,7 +167,7 @@ describe('Kindergarden', () => {
     act(() => {
       root = create(
         <ul>
-          <Kindergarden registry={registry} context={context}>
+          <Kindergarden {...registry} context={context}>
             <Child>Hi</Child>
             <Child>Ho</Child>
           </Kindergarden>
@@ -201,13 +212,6 @@ describe('Kindergarden', () => {
   });
 
   describe('events', () => {
-    it('fails when using events and registry together', () => {
-      expect(() => {
-        jest.spyOn(console, 'error').mockImplementationOnce(() => {});
-        create(<Kindergarden onAdd={() => {}} registry={createRegistry()} />);
-      }).toThrowError('Can not use events and registry together');
-    });
-
     it('calls onAdd, onUpdate and onRemove for each child', () => {
       const addCb = jest.fn((kind) => {
         expect(kind).toEqual({
@@ -270,27 +274,6 @@ describe('Kindergarden', () => {
     });
   });
 
-  describe('useRegistry', () => {
-    const registries: KindergardenRegistry<any>[] = [];
-    const Elm = () => {
-      const reg = useRegistry();
-      registries.push(reg);
-
-      return null;
-    };
-    const root = create(<Elm />);
-    root.update(<Elm />);
-
-    expect(registries[0]).toEqual({
-      hooks: expect.any(Object),
-      add: expect.any(Function),
-      update: expect.any(Function),
-      remove: expect.any(Function),
-      entries: expect.any(Array),
-    });
-    expect(registries[0]).toBe(registries[1]);
-  });
-
   describe('update', () => {
     it('throws used outside of Kindergarden', () => {
       const Child = () => {
@@ -326,7 +309,7 @@ describe('Kindergarden', () => {
       let root: ReactTestRenderer;
       act(() => {
         root = create(
-          <Kindergarden registry={registry}>
+          <Kindergarden {...registry}>
             <Sorter />
           </Kindergarden>,
           {
